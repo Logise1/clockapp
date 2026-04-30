@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Control Remoto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root {
+      --font:'Google Sans','Product Sans','Inter',sans-serif;
+      --bg:#0c0c0f;
+      --card:rgba(255,255,255,0.04);
+      --card-border:rgba(255,255,255,0.07);
+      --accent:#6c8cff;
+      --accent2:#a78bfa;
+      --danger:#ff6b6b;
+      --c1:rgba(255,255,255,0.92);
+      --c2:rgba(255,255,255,0.55);
+      --c3:rgba(255,255,255,0.3);
+      --ease:cubic-bezier(0.4,0,0.2,1);
+    }
+    html,body{width:100%;min-height:100%;font-family:var(--font);background:var(--bg);color:var(--c1);-webkit-tap-highlight-color:transparent;}
+
+    .app{max-width:420px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:16px;}
+
+    /* ── Header ── */
+    .header{display:flex;align-items:center;gap:12px;padding:8px 0;}
+    .header-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:dotPulse 2s ease-in-out infinite;}
+    @keyframes dotPulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--accent);}50%{opacity:0.5;box-shadow:0 0 2px var(--accent);}}
+    .header h1{font-size:18px;font-weight:500;letter-spacing:-0.3px;}
+    .header-sub{font-size:12px;color:var(--c3);margin-left:auto;}
+
+    /* ── Cards ── */
+    .card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:20px;transition:all 0.3s var(--ease);}
+    .card-title{font-size:11px;font-weight:500;color:var(--c3);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+    .card-title .icon{font-size:14px;}
+
+    /* ── Timer Section ── */
+    .input-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+    .input-label{font-size:12px;color:var(--c2);}
+    .input-field{
+      width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--card-border);
+      background:rgba(255,255,255,0.03);color:var(--c1);font-family:var(--font);font-size:15px;
+      outline:none;transition:border-color 0.3s;
+    }
+    .input-field:focus{border-color:var(--accent);}
+    .input-field::placeholder{color:var(--c3);}
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator{filter:invert(0.6);}
+
+    .timer-actions{display:flex;gap:10px;margin-top:4px;}
+    .btn{
+      flex:1;padding:12px;border-radius:12px;border:none;cursor:pointer;
+      font-family:var(--font);font-size:14px;font-weight:500;
+      transition:all 0.25s var(--ease);display:flex;align-items:center;justify-content:center;gap:6px;
+    }
+    .btn:active{transform:scale(0.96);}
+    .btn-primary{background:var(--accent);color:#fff;}
+    .btn-primary:hover{background:#5a7aee;box-shadow:0 4px 20px rgba(108,140,255,0.3);}
+    .btn-danger{background:rgba(255,107,107,0.15);color:var(--danger);}
+    .btn-danger:hover{background:rgba(255,107,107,0.25);}
+    .btn-secondary{background:rgba(255,255,255,0.06);color:var(--c2);}
+    .btn-secondary:hover{background:rgba(255,255,255,0.1);color:var(--c1);}
+    .btn-icon{background:rgba(255,255,255,0.06);color:var(--c2);width:48px;flex:none;font-size:18px;}
+    .btn-icon:hover{background:rgba(255,255,255,0.1);color:var(--c1);}
+
+    .timer-status{
+      display:flex;align-items:center;gap:10px;padding:12px 14px;
+      border-radius:10px;background:rgba(108,140,255,0.08);border:1px solid rgba(108,140,255,0.15);
+      margin-top:12px;opacity:0;max-height:0;overflow:hidden;transition:all 0.4s var(--ease);
+    }
+    .timer-status.active{opacity:1;max-height:100px;margin-top:12px;}
+    .timer-status .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:dotPulse 1.5s ease-in-out infinite;}
+    .timer-status .info{display:flex;flex-direction:column;gap:2px;}
+    .timer-status .info-title{font-size:13px;color:var(--c1);}
+    .timer-status .info-remain{font-size:12px;color:var(--c2);font-variant-numeric:tabular-nums;}
+
+    /* ── Position Grid ── */
+    .pos-section{display:flex;flex-direction:column;gap:14px;}
+    .pos-group{display:flex;flex-direction:column;gap:8px;}
+    .pos-label{font-size:13px;color:var(--c2);display:flex;align-items:center;gap:6px;}
+    .pos-label .emoji{font-size:16px;}
+    .pos-grid{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:4px;
+      background:rgba(255,255,255,0.02);border-radius:12px;padding:4px;
+      border:1px solid var(--card-border);
+      aspect-ratio:16/9;
+    }
+    .pos-cell{
+      border-radius:8px;border:none;cursor:pointer;
+      background:rgba(255,255,255,0.03);color:var(--c3);
+      font-family:var(--font);font-size:9px;letter-spacing:0.5px;
+      transition:all 0.25s var(--ease);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .pos-cell:hover{background:rgba(255,255,255,0.08);color:var(--c2);}
+    .pos-cell:active{transform:scale(0.93);}
+    .pos-cell.active{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(108,140,255,0.35);}
+    .pos-cell.active-purple{background:var(--accent2);color:#fff;box-shadow:0 2px 12px rgba(167,139,250,0.35);}
+
+    /* ── Quick Actions ── */
+    .quick-actions{display:flex;gap:10px;}
+    .quick-btn{
+      flex:1;padding:14px 10px;border-radius:12px;border:1px solid var(--card-border);
+      background:var(--card);cursor:pointer;display:flex;flex-direction:column;
+      align-items:center;gap:6px;transition:all 0.25s var(--ease);
+    }
+    .quick-btn:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);}
+    .quick-btn:active{transform:scale(0.95);}
+    .quick-btn .q-icon{font-size:22px;}
+    .quick-btn .q-text{font-size:11px;color:var(--c2);font-family:var(--font);}
+
+    /* ── Presets ── */
+    .preset-row{display:flex;gap:8px;flex-wrap:wrap;}
+    .preset-chip{
+      padding:8px 14px;border-radius:20px;border:1px solid var(--card-border);
+      background:rgba(255,255,255,0.03);color:var(--c2);cursor:pointer;
+      font-family:var(--font);font-size:13px;transition:all 0.25s var(--ease);
+    }
+    .preset-chip:hover{background:rgba(255,255,255,0.08);color:var(--c1);border-color:var(--accent);}
+    .preset-chip:active{transform:scale(0.95);}
+
+    /* ── Toast ── */
+    .toast{
+      position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+      padding:12px 20px;border-radius:12px;background:rgba(30,30,40,0.95);backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.1);color:var(--c1);font-size:13px;
+      transition:transform 0.4s var(--ease),opacity 0.4s var(--ease);opacity:0;z-index:100;
+      pointer-events:none;
+    }
+    .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-dot"></div>
+    <h1>Control Remoto</h1>
+    <span class="header-sub" id="connStatus">Conectando...</span>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <button class="quick-btn" id="btnNextPhoto">
+      <span class="q-icon">🖼️</span>
+      <span class="q-text">Siguiente foto</span>
+    </button>
+    <button class="quick-btn" id="btnFullscreen">
+      <span class="q-icon">⛶</span>
+      <span class="q-text">Fullscreen</span>
+    </button>
+  </div>
+
+  <!-- Timer -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⏱</span> Temporizador</div>
+    <div class="input-group">
+      <label class="input-label">Título</label>
+      <input class="input-field" type="text" id="timerTitleInput" placeholder="Ej: Fin del descanso" maxlength="40">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Hora objetivo</label>
+      <input class="input-field" type="datetime-local" id="timerTimeInput">
+    </div>
+    <div class="preset-row" style="margin-bottom:14px;">
+      <button class="preset-chip" data-mins="5">5 min</button>
+      <button class="preset-chip" data-mins="10">10 min</button>
+      <button class="preset-chip" data-mins="15">15 min</button>
+      <button class="preset-chip" data-mins="30">30 min</button>
+      <button class="preset-chip" data-mins="60">1 hora</button>
+    </div>
+    <div class="timer-actions">
+      <button class="btn btn-primary" id="btnStartTimer">▶ Iniciar</button>
+      <button class="btn btn-danger" id="btnStopTimer">■ Parar</button>
+    </div>
+    <div class="timer-status" id="timerStatus">
+      <div class="dot"></div>
+      <div class="info">
+        <span class="info-title" id="statusTitle">—</span>
+        <span class="info-remain" id="statusRemain">--:--:--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Positions -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📐</span> Posiciones</div>
+    <div class="pos-section">
+      <div class="pos-group">
+        <div class="pos-label"><span class="emoji">🕐</span> Reloj</div>
+        <div class="pos-grid" id="gridClock">
+          <button class="pos-cell" data-pos="tl">↖</button>
+          <button class="pos-cell" data-pos="tc">↑</button>
+          <button class="pos-cell" data-pos="tr">↗</button>
+          <button class="pos-cell" data-pos="ml">←</button>
+          <button class="pos-cell" data-pos="mc">•</button>
+          <button class="pos-cell" data-pos="mr">→</button>
+          <button class="pos-cell" data-pos="bl">↙</button>
+          <button class="pos-cell" data-pos="bc">↓</button>
+          <button class="pos-cell" data-pos="br">↘</button>
+        </div>
+      </div>
+      <div class="pos-group">
+        <div class="pos-label"><span class="emoji">⏱</span> Temporizador</div>
+        <div class="pos-grid" id="gridTimer">
+          <button class="pos-cell" data-pos="tl">↖</button>
+          <button class="pos-cell" data-pos="tc">↑</button>
+          <button class="pos-cell" data-pos="tr">↗</button>
+          <button class="pos-cell" data-pos="ml">←</button>
+          <button class="pos-cell" data-pos="mc">•</button>
+          <button class="pos-cell" data-pos="mr">→</button>
+          <button class="pos-cell" data-pos="bl">↙</button>
+          <button class="pos-cell" data-pos="bc">↓</button>
+          <button class="pos-cell" data-pos="br">↘</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  // ── Firebase ──
+  firebase.initializeApp({ databaseURL: 'https://friendly-90c71-default-rtdb.europe-west1.firebasedatabase.app' });
+  const db = firebase.database();
+
+  const $ = id => document.getElementById(id);
+  const connStatus = $('connStatus');
+
+  // Connection status
+  db.ref('.info/connected').on('value', snap => {
+    connStatus.textContent = snap.val() ? 'Conectado ✓' : 'Sin conexión';
+    connStatus.style.color = snap.val() ? '#6c8cff' : '#ff6b6b';
+  });
+
+  // ── Toast ──
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // ── Timer ──
+  const timerTitleInput = $('timerTitleInput');
+  const timerTimeInput = $('timerTimeInput');
+  const statusTitle = $('statusTitle');
+  const statusRemain = $('statusRemain');
+  const timerStatus = $('timerStatus');
+
+  // Set default datetime to now + 10 min
+  function setDefaultTime() {
+    const d = new Date(Date.now() + 600000);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    timerTimeInput.value = local;
+  }
+  setDefaultTime();
+
+  // Presets
+  document.querySelectorAll('.preset-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const mins = parseInt(chip.dataset.mins);
+      const d = new Date(Date.now() + mins * 60000);
+      const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      timerTimeInput.value = local;
+      toast(`Puesto en ${mins} minutos`);
+    });
+  });
+
+  // Start timer
+  $('btnStartTimer').addEventListener('click', () => {
+    const title = timerTitleInput.value.trim() || 'Temporizador';
+    const timeVal = timerTimeInput.value;
+    if (!timeVal) { toast('Selecciona una hora'); return; }
+    const target = new Date(timeVal).getTime();
+    if (target <= Date.now()) { toast('La hora ya ha pasado'); return; }
+    db.ref('timer').set({ active: true, title, targetTime: target });
+    toast('Temporizador iniciado ✓');
+  });
+
+  // Stop timer
+  $('btnStopTimer').addEventListener('click', () => {
+    db.ref('timer').set({ active: false, title: '', targetTime: 0 });
+    toast('Temporizador detenido');
+  });
+
+  // Listen to timer state
+  let statusInterval = null;
+  db.ref('timer').on('value', snap => {
+    const data = snap.val();
+    if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+    if (!data || !data.active) {
+      timerStatus.classList.remove('active');
+      return;
+    }
+    timerStatus.classList.add('active');
+    statusTitle.textContent = data.title || 'Temporizador';
+    function tick() {
+      const r = data.targetTime - Date.now();
+      if (r <= 0) { statusRemain.textContent = '¡Finalizado!'; return; }
+      const h = Math.floor(r/3600000), m = Math.floor((r%3600000)/60000), s = Math.floor((r%60000)/1000);
+      statusRemain.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} restante`;
+    }
+    tick();
+    statusInterval = setInterval(tick, 1000);
+  });
+
+  // ── Positions ──
+  function setupGrid(gridId, fbPath, activeClass) {
+    const grid = $(gridId);
+    const cells = grid.querySelectorAll('.pos-cell');
+
+    // Listen for current value
+    db.ref(fbPath).on('value', snap => {
+      const pos = snap.val() || (fbPath.includes('clock') ? 'bl' : 'tr');
+      cells.forEach(c => {
+        c.classList.remove('active', 'active-purple');
+        if (c.dataset.pos === pos) c.classList.add(activeClass);
+      });
+    });
+
+    // Click to set
+    cells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        db.ref(fbPath).set(cell.dataset.pos);
+        toast('Posición actualizada');
+      });
+    });
+  }
+
+  setupGrid('gridClock', 'positions/clock', 'active');
+  setupGrid('gridTimer', 'positions/timer', 'active-purple');
+
+  // ── Quick Actions ──
+  $('btnNextPhoto').addEventListener('click', () => {
+    db.ref('actions/nextPhoto').set(true);
+    toast('Siguiente foto ✓');
+  });
+
+  $('btnFullscreen').addEventListener('click', () => {
+    db.ref('actions/fullscreen').set(Date.now());
+    toast('Señal enviada');
+  });
+})();
+</script>
+</body>
+</html>

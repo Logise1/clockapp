@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scenic Clock</title>
+  <meta name="description" content="Minimalist fullscreen clock with rotating 4K landscape backgrounds">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500&family=Product+Sans:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --font:'Google Sans','Product Sans','Inter',-apple-system,sans-serif;
+      --glass-bg:rgba(0,0,0,0.18);--glass-border:rgba(255,255,255,0.08);--blur:24px;
+      --c1:rgba(255,255,255,0.95);--c2:rgba(255,255,255,0.6);--c3:rgba(255,255,255,0.35);
+      --ease:cubic-bezier(0.4,0,0.2,1);
+    }
+    html,body{width:100%;height:100%;overflow:hidden;font-family:var(--font);background:#0a0a0a;cursor:default;user-select:none;}
+
+    /* BG */
+    .bg-layer{position:fixed;inset:0;background-size:cover;background-position:center;transition:opacity 1.8s var(--ease);will-change:opacity;}
+    #bg-a{opacity:1;z-index:1}#bg-b{opacity:0;z-index:2}
+    .vignette{position:fixed;inset:0;z-index:3;pointer-events:none;
+      background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.45) 100%),linear-gradient(to top,rgba(0,0,0,0.5) 0%,transparent 40%);}
+    .dim-overlay{position:fixed;inset:0;z-index:4;background:rgba(0,0,0,0);pointer-events:none;transition:background 1s var(--ease);}
+
+    /* Clock Block */
+    .clock-block{position:fixed;z-index:10;transition:all 0.8s var(--ease);}
+    .clock-block.pos-bl{bottom:48px;left:56px;text-align:left}
+    .clock-block.pos-bc{bottom:48px;left:50%;transform:translateX(-50%);text-align:center}
+    .clock-block.pos-br{bottom:48px;right:56px;text-align:right}
+    .clock-block.pos-tl{top:48px;left:56px;text-align:left}
+    .clock-block.pos-tc{top:48px;left:50%;transform:translateX(-50%);text-align:center}
+    .clock-block.pos-tr{top:48px;right:56px;text-align:right}
+    .clock-block.pos-ml{top:50%;left:56px;transform:translateY(-50%);text-align:left}
+    .clock-block.pos-mc{top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+    .clock-block.pos-mr{top:50%;right:56px;transform:translateY(-50%);text-align:right}
+
+    .time{font-size:96px;font-weight:300;color:var(--c1);letter-spacing:-3px;line-height:1;text-shadow:0 2px 40px rgba(0,0,0,0.4);}
+    .time .seconds{font-size:36px;font-weight:400;color:var(--c2);letter-spacing:0;margin-left:4px;vertical-align:super;}
+    .date-text{font-size:20px;font-weight:400;color:var(--c2);letter-spacing:.3px;margin-top:6px;text-shadow:0 1px 20px rgba(0,0,0,0.3);}
+
+    /* Weather */
+    .weather{display:flex;align-items:center;gap:12px;margin-top:20px;opacity:0;transform:translateY(8px);transition:opacity .6s var(--ease),transform .6s var(--ease);}
+    .weather.visible{opacity:1;transform:translateY(0);}
+    .weather-icon{font-size:28px;line-height:1}
+    .weather-info{display:flex;flex-direction:column;gap:1px}
+    .weather-temp{font-size:18px;color:var(--c1);text-shadow:0 1px 16px rgba(0,0,0,0.3)}
+    .weather-desc{font-size:13px;color:var(--c2);text-transform:capitalize}
+    .weather-loc{font-size:12px;color:var(--c3)}
+
+    /* Timers Container */
+    .timers-wrap{position:fixed;z-index:10;display:flex;flex-direction:column;gap:10px;transition:all .8s var(--ease);}
+    .timers-wrap.pos-tr{top:32px;right:32px;align-items:flex-end}
+    .timers-wrap.pos-tl{top:32px;left:56px;align-items:flex-start}
+    .timers-wrap.pos-tc{top:32px;left:50%;transform:translateX(-50%);align-items:center}
+    .timers-wrap.pos-br{bottom:48px;right:56px;align-items:flex-end}
+    .timers-wrap.pos-bl{bottom:48px;left:56px;align-items:flex-start}
+    .timers-wrap.pos-bc{bottom:48px;left:50%;transform:translateX(-50%);align-items:center}
+    .timers-wrap.pos-ml{top:50%;left:56px;transform:translateY(-50%);align-items:flex-start}
+    .timers-wrap.pos-mc{top:50%;left:50%;transform:translate(-50%,-50%);align-items:center}
+    .timers-wrap.pos-mr{top:50%;right:56px;transform:translateY(-50%);align-items:flex-end}
+
+    .timer-card{
+      padding:16px 24px;border-radius:14px;
+      background:var(--glass-bg);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+      border:1px solid var(--glass-border);
+      animation:timerIn .5s var(--ease) forwards;
+    }
+    @keyframes timerIn{from{opacity:0;transform:translateY(-10px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .timer-card.removing{animation:timerOut .4s var(--ease) forwards;}
+    @keyframes timerOut{to{opacity:0;transform:translateY(-10px) scale(.96)}}
+
+    .timer-label{font-size:11px;color:var(--c3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+    .timer-time{font-size:36px;font-weight:300;color:var(--c1);letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
+    .timer-time.urgent{color:#ff6b6b;animation:urgPulse 1s ease-in-out infinite}
+    .timer-time.done{color:#4ade80}
+    @keyframes urgPulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    /* Message Overlay */
+    .msg-overlay{
+      position:fixed;z-index:12;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);
+      padding:32px 48px;border-radius:20px;
+      background:rgba(0,0,0,0.5);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+      border:1px solid rgba(255,255,255,0.1);text-align:center;
+      opacity:0;pointer-events:none;transition:all .5s var(--ease);
+    }
+    .msg-overlay.active{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+    .msg-text{font-size:32px;font-weight:400;color:var(--c1);line-height:1.3;max-width:600px}
+
+    /* Photo Credit */
+    .photo-credit{position:fixed;bottom:48px;right:56px;z-index:10;text-align:right;opacity:0;transition:opacity .8s var(--ease)}
+    .photo-credit.visible{opacity:1}
+    .credit-label{font-size:11px;color:var(--c3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
+    .credit-author{font-size:14px;color:var(--c2)}
+    .credit-location{font-size:12px;color:var(--c3);margin-top:1px}
+
+    /* Photo counter */
+    .photo-counter{position:fixed;bottom:12px;left:56px;z-index:10;font-size:11px;color:var(--c3);opacity:0;transition:opacity .6s var(--ease);}
+    .photo-counter.visible{opacity:1}
+
+    /* Fullscreen Btn */
+    .fs-btn{
+      position:fixed;top:32px;right:32px;z-index:20;
+      width:44px;height:44px;border:none;outline:none;cursor:pointer;
+      background:var(--glass-bg);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+      border-radius:12px;border:1px solid var(--glass-border);
+      display:flex;align-items:center;justify-content:center;
+      transition:all .35s var(--ease);opacity:0;animation:fadeIn .8s var(--ease) .5s forwards;
+    }
+    @keyframes fadeIn{to{opacity:1}}
+    .fs-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.15);transform:scale(1.08)}
+    .fs-btn:active{transform:scale(.95)}
+    .fs-btn svg{width:20px;height:20px;fill:none;stroke:var(--c2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:stroke .3s}
+    .fs-btn:hover svg{stroke:var(--c1)}
+    .fs-btn.hidden{opacity:0!important;pointer-events:none;transform:scale(.8)}
+
+    /* Progress */
+    .progress{position:fixed;bottom:0;left:0;z-index:15;height:2px;background:rgba(255,255,255,0.25);transition:width 1s linear;border-radius:0 1px 1px 0}
+
+    /* Loading */
+    .loading{position:fixed;inset:0;z-index:100;background:#0a0a0a;display:flex;align-items:center;justify-content:center;transition:opacity 1s var(--ease)}
+    .loading.hidden{opacity:0;pointer-events:none}
+    .loader{width:32px;height:32px;border:2px solid rgba(255,255,255,0.1);border-top-color:rgba(255,255,255,0.5);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Entrance */
+    .clock-block{opacity:0;transform:translateY(20px);animation:slideUp 1s var(--ease) .3s forwards}
+    @keyframes slideUp{to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+
+  <div class="loading" id="loading"><div class="loader"></div></div>
+  <div class="bg-layer" id="bg-a"></div>
+  <div class="bg-layer" id="bg-b"></div>
+  <div class="vignette"></div>
+  <div class="dim-overlay" id="dimOverlay"></div>
+  <div class="progress" id="progress"></div>
+
+  <button class="fs-btn" id="fsBtn" title="Pantalla completa">
+    <svg id="fsIcon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+  </button>
+
+  <div class="clock-block pos-bl" id="clockBlock">
+    <div class="time" id="time"></div>
+    <div class="date-text" id="dateText"></div>
+    <div class="weather" id="weather">
+      <span class="weather-icon" id="wIcon"></span>
+      <div class="weather-info">
+        <span class="weather-temp" id="wTemp"></span>
+        <span class="weather-desc" id="wDesc"></span>
+        <span class="weather-loc" id="wLoc"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multiple timers rendered here -->
+  <div class="timers-wrap pos-tr" id="timersWrap"></div>
+
+  <!-- Message overlay -->
+  <div class="msg-overlay" id="msgOverlay"><div class="msg-text" id="msgText"></div></div>
+
+  <!-- Photo Credit -->
+  <div class="photo-credit" id="photoCredit">
+    <div class="credit-label">Foto</div>
+    <div class="credit-author" id="creditAuthor"></div>
+    <div class="credit-location" id="creditLoc"></div>
+  </div>
+  <div class="photo-counter" id="photoCounter"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+(()=>{
+  'use strict';
+  firebase.initializeApp({databaseURL:'https://friendly-90c71-default-rtdb.europe-west1.firebasedatabase.app'});
+  const db=firebase.database();
+
+  let photos=[],currentIndex=-1,activeLayer='a',timerStart=0,progressRAF=null,photoInterval=60000,photoPaused=false;
+  const $=id=>document.getElementById(id);
+  const bgA=$('bg-a'),bgB=$('bg-b'),progressBar=$('progress'),loading=$('loading');
+  const fsBtn=$('fsBtn'),fsIcon=$('fsIcon'),clockBlock=$('clockBlock'),timersWrap=$('timersWrap');
+  const timeEl=$('time'),dateText=$('dateText');
+  const weatherEl=$('weather'),wIcon=$('wIcon'),wTemp=$('wTemp'),wDesc=$('wDesc'),wLoc=$('wLoc');
+  const creditAuthor=$('creditAuthor'),creditLoc=$('creditLoc'),photoCredit=$('photoCredit');
+  const msgOverlay=$('msgOverlay'),msgText=$('msgText'),dimOverlay=$('dimOverlay');
+  const photoCounter=$('photoCounter');
+
+  // ── Clock ──
+  const DAYS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MONTHS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  function updateClock(){
+    const now=new Date(),h=String(now.getHours()).padStart(2,'0'),m=String(now.getMinutes()).padStart(2,'0'),s=String(now.getSeconds()).padStart(2,'0');
+    timeEl.innerHTML=`${h}:${m}<span class="seconds">${s}</span>`;
+    dateText.textContent=`${DAYS[now.getDay()]}, ${now.getDate()} de ${MONTHS[now.getMonth()]} de ${now.getFullYear()}`;
+  }
+  setInterval(updateClock,1000);updateClock();
+
+  // ── Weather ──
+  async function fetchWeather(){
+    try{
+      const geo=await(await fetch('https://ipapi.co/json/')).json();
+      const meteo=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current=temperature_2m,weather_code,is_day&timezone=auto`)).json();
+      const c=meteo.current;
+      const wmo={0:{d:'Despejado',i:c.is_day?'☀️':'🌙'},1:{d:'Mayormente despejado',i:c.is_day?'🌤️':'🌙'},2:{d:'Parcialmente nublado',i:'⛅'},3:{d:'Nublado',i:'☁️'},45:{d:'Niebla',i:'🌫️'},48:{d:'Niebla helada',i:'🌫️'},51:{d:'Llovizna ligera',i:'🌦️'},53:{d:'Llovizna',i:'🌧️'},55:{d:'Llovizna intensa',i:'🌧️'},61:{d:'Lluvia ligera',i:'🌦️'},63:{d:'Lluvia',i:'🌧️'},65:{d:'Lluvia intensa',i:'🌧️'},71:{d:'Nieve ligera',i:'❄️'},73:{d:'Nieve',i:'🌨️'},75:{d:'Nieve intensa',i:'🌨️'},80:{d:'Chubascos',i:'🌦️'},81:{d:'Chubascos fuertes',i:'🌧️'},82:{d:'Chubascos violentos',i:'⛈️'},95:{d:'Tormenta',i:'⛈️'},96:{d:'Tormenta con granizo',i:'⛈️'},99:{d:'Tormenta severa',i:'⛈️'}};
+      const w=wmo[c.weather_code]||{d:'—',i:'🌡️'};
+      wIcon.textContent=w.i;wTemp.textContent=Math.round(c.temperature_2m)+'°C';wDesc.textContent=w.d;wLoc.textContent=geo.city||'';
+      weatherEl.classList.add('visible');
+    }catch(e){console.warn('Weather error:',e);}
+  }
+  fetchWeather();setInterval(fetchWeather,600000);
+
+  // ── Photos ──
+  function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function preload(url){return new Promise((r,e)=>{const i=new Image();i.onload=()=>r(url);i.onerror=e;i.src=url;});}
+
+  async function showNextPhoto(){
+    if(photoPaused)return;
+    currentIndex=(currentIndex+1)%photos.length;
+    const p=photos[currentIndex];
+    try{await preload(p.url);}catch(e){if(photos.length>1){showNextPhoto();return;}}
+    const inc=activeLayer==='a'?bgB:bgA,out=activeLayer==='a'?bgA:bgB;
+    inc.style.backgroundImage=`url("${p.url}")`;inc.style.opacity='1';out.style.opacity='0';
+    activeLayer=activeLayer==='a'?'b':'a';
+    creditAuthor.textContent=p.author||'';creditLoc.textContent=p.location||'';
+    photoCredit.classList.add('visible');
+    photoCounter.textContent=`${currentIndex+1} / ${photos.length}`;
+    photoCounter.classList.add('visible');
+    timerStart=Date.now();updateProgress();
+    loading.classList.add('hidden');
+  }
+
+  function updateProgress(){
+    if(progressRAF)cancelAnimationFrame(progressRAF);
+    if(photoPaused){progressBar.style.width='0%';return;}
+    (function tick(){
+      const pct=Math.min((Date.now()-timerStart)/photoInterval*100,100);
+      progressBar.style.width=pct+'%';
+      if(pct<100)progressRAF=requestAnimationFrame(tick);else showNextPhoto();
+    })();
+  }
+
+  (async()=>{
+    try{photos=await(await fetch('./photos.json')).json();shuffle(photos);showNextPhoto();}
+    catch(e){console.error(e);loading.classList.add('hidden');}
+  })();
+
+  // ── Fullscreen ──
+  const expandP='M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3';
+  const compressP='M4 14h3a1 1 0 0 1 1 1v3m12-4h-3a1 1 0 0 0-1 1v3m0-14v3a1 1 0 0 0 1 1h3M4 10h3a1 1 0 0 0 1-1V6';
+  fsBtn.addEventListener('click',async()=>{try{if(!document.fullscreenElement){await document.documentElement.requestFullscreen();fsBtn.classList.add('hidden');}else{await document.exitFullscreen();}}catch(e){}});
+  document.addEventListener('fullscreenchange',()=>{fsIcon.querySelector('path').setAttribute('d',document.fullscreenElement?compressP:expandP);if(!document.fullscreenElement)fsBtn.classList.remove('hidden');});
+  let ht=null;
+  document.addEventListener('mousemove',e=>{if(document.fullscreenElement&&e.clientY<80){fsBtn.classList.remove('hidden');clearTimeout(ht);ht=setTimeout(()=>{if(document.fullscreenElement)fsBtn.classList.add('hidden');},2500);}});
+
+  // ── Firebase: Positions ──
+  const posClasses=['pos-tl','pos-tc','pos-tr','pos-ml','pos-mc','pos-mr','pos-bl','pos-bc','pos-br'];
+  function applyPos(el,pos){posClasses.forEach(c=>el.classList.remove(c));el.classList.add('pos-'+(pos||'bl'));}
+  db.ref('positions/clock').on('value',s=>{applyPos(clockBlock,s.val()||'bl');});
+  db.ref('positions/timer').on('value',s=>{applyPos(timersWrap,s.val()||'tr');});
+
+  // ── Firebase: Multiple Timers ──
+  let timerIntervals={};
+  function fmtRemain(ms){
+    if(ms<=0)return'00:00:00';
+    const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
+    return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  db.ref('timers').on('value',snap=>{
+    // Clear old intervals
+    Object.values(timerIntervals).forEach(id=>clearInterval(id));
+    timerIntervals={};
+
+    const data=snap.val();
+    const existingIds=new Set(Object.keys(data||{}));
+    // Remove cards no longer in data
+    timersWrap.querySelectorAll('.timer-card').forEach(card=>{
+      if(!existingIds.has(card.dataset.id)){card.classList.add('removing');setTimeout(()=>card.remove(),400);}
+    });
+
+    if(!data){return;}
+
+    Object.entries(data).forEach(([id,t])=>{
+      if(!t.active)return;
+      let card=timersWrap.querySelector(`.timer-card[data-id="${id}"]`);
+      if(!card){
+        card=document.createElement('div');card.className='timer-card';card.dataset.id=id;
+        card.innerHTML=`<div class="timer-label"></div><div class="timer-time"></div>`;
+        timersWrap.appendChild(card);
+      }
+      const label=card.querySelector('.timer-label'),timeD=card.querySelector('.timer-time');
+      label.textContent=t.title||'TEMPORIZADOR';
+
+      function tick(){
+        const r=t.targetTime-Date.now();
+        timeD.textContent=fmtRemain(r);
+        timeD.classList.toggle('urgent',r>0&&r<60000);
+        timeD.classList.toggle('done',r<=0);
+        if(r<=0){label.textContent=(t.title||'TEMPORIZADOR')+' ✓';}
+      }
+      tick();
+      timerIntervals[id]=setInterval(tick,1000);
+    });
+  });
+
+  // ── Firebase: Actions ──
+  db.ref('actions/nextPhoto').on('value',s=>{if(s.val()){showNextPhoto();db.ref('actions/nextPhoto').set(false);}});
+  db.ref('actions/fullscreen').on('value',s=>{
+    if(s.val()&&!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(()=>{});fsBtn.classList.add('hidden');
+      db.ref('actions/fullscreen').set(false);
+    }
+  });
+
+  // ── Firebase: Settings ──
+  db.ref('settings/photoInterval').on('value',s=>{
+    const v=s.val();if(v&&v>=10000){photoInterval=v;timerStart=Date.now();updateProgress();}
+  });
+  db.ref('settings/paused').on('value',s=>{
+    photoPaused=!!s.val();
+    if(photoPaused){if(progressRAF)cancelAnimationFrame(progressRAF);progressBar.style.width='0%';}
+    else{timerStart=Date.now();updateProgress();}
+  });
+  db.ref('settings/dim').on('value',s=>{
+    const v=s.val()||0;dimOverlay.style.background=`rgba(0,0,0,${v/100})`;
+  });
+
+  // ── Firebase: Message ──
+  db.ref('message').on('value',s=>{
+    const d=s.val();
+    if(d&&d.active&&d.text){msgText.textContent=d.text;msgOverlay.classList.add('active');}
+    else{msgOverlay.classList.remove('active');}
+  });
+
+  // ── Firebase: Weather visibility ──
+  db.ref('settings/hideWeather').on('value',s=>{
+    if(s.val()){weatherEl.classList.remove('visible');weatherEl.style.display='none';}
+    else{weatherEl.style.display='';fetchWeather();}
+  });
+})();
+</script>
+</body>
+</html>
